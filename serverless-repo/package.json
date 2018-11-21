@@ -1,0 +1,22 @@
+{
+  "name": "karate-scheduler-serverless-repo",
+  "version": "1.0.0",
+  "description": "Alexa skill for karate class schedules",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/briandicola/karate-scheduler.git"
+  },
+  "author": "Brian DiCola",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/briandicola/karate-scheduler/issues"
+  },
+  "homepage": "https://github.com/briandicola/karate-scheduler#readme",
+  "dependencies": {
+    "ask-sdk": "^2.3.0"
+  }
+}

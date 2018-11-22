@@ -8,6 +8,8 @@ const scheds = require('./schedules');
 const classes = require('./belt-age-class');
 const belts = require('./belt-ranges');
 const ages = require('./age-ranges');
+const blackbelttests = require('blackbelttestschedule');
+const beltpromotions = require('beltpromotionsschedule');
 
 function convertDateToDay(date){
   console.log('Converting date ' + date + ' to day of the week');
@@ -265,7 +267,7 @@ function validateClassAndDay(desiredClass, desiredDay){
   return true;
 }
 
-function handleClassAndDay(handlerInput, desiredClass, desiredDay){
+function handleClassAndDay(handlerInput, desiredClass, desiredDay, gpp){
   const mySchedules = scheds.SCHEDS;
   let objClass = mySchedules[desiredClass];
   let objDay = objClass[desiredDay];
@@ -274,7 +276,7 @@ function handleClassAndDay(handlerInput, desiredClass, desiredDay){
   let speechOutput = 'Checking schedule for ' + desiredClass + ' class on ' + desiredDay + '.  ';
 
   if(arrayLength != 0){
-    speechOutput += 'Here\'s the result:  ';
+    speechOutput += getResultMessage(gpp);
     for (let i = 0; i < arrayLength; i++) {
       speechOutput += objDay[i] + ', ';
     }
@@ -287,6 +289,18 @@ function handleClassAndDay(handlerInput, desiredClass, desiredDay){
     .speak(speechOutput)
     .reprompt(CONTINUE_MESSAGE)
     .getResponse();
+}
+
+function getResultMessage(gpp){
+  let msgArr = STANDARD_RESULT_MESSAGES;
+
+  if(gpp){
+    msgArr = GPP_RESULT_MESSAGES;
+  }
+
+  const msgIndex = Math.floor(Math.random() * msgArr.length);
+  const randomMsg = msgArr[msgIndex];
+  return randomMsg;
 }
 
 function getErrorMessage(gpp){
@@ -309,9 +323,9 @@ const GetScheduleByClassTodayIntentHandler = {
         && request.intent.name === 'GetScheduleByClassTodayIntent');
   },
   handle(handlerInput) {
-    const { requestEnvelope } = handlerInput;
+    const { requestEnvelope, attributesManager} = handlerInput;
     const { intent } = requestEnvelope.request;
-
+    const sessionAttributes = attributesManager.getSessionAttributes();
     const speechOutput = 'Please check classname and day';
 
     var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -322,7 +336,8 @@ const GetScheduleByClassTodayIntentHandler = {
     if (validateClassAndDay(intent.slots.class_name.value.toLowerCase(),desiredDay)){
       return handleClassAndDay(handlerInput,
                                 intent.slots.class_name.value.toLowerCase(),
-                                desiredDay);
+                                desiredDay,
+                                sessionAttributes.gpp);
     }
     else{
       return handlerInput.responseBuilder
@@ -340,9 +355,9 @@ const GetScheduleByClassAndDayIntentHandler = {
         && request.intent.name === 'GetScheduleByClassAndDayIntent');
   },
   handle(handlerInput) {
-    const { requestEnvelope } = handlerInput;
+    const { requestEnvelope, attributesManager } = handlerInput;
     const { intent } = requestEnvelope.request;
-
+    const sessionAttributes = attributesManager.getSessionAttributes();
     console.log('In GetScheduleByClassAndDayIntent');
 
     const speechOutput = 'Please check class name and day';
@@ -351,7 +366,8 @@ const GetScheduleByClassAndDayIntentHandler = {
                               intent.slots.day.value.toLowerCase())){
       return handleClassAndDay(handlerInput,
                                 intent.slots.class_name.value.toLowerCase(),
-                                intent.slots.day.value.toLowerCase());
+                                intent.slots.day.value.toLowerCase(),
+                                sessionAttributes.gpp);
     }
     else{
       return handlerInput.responseBuilder
@@ -369,8 +385,9 @@ const GetScheduleByClassAndDateIntentHandler = {
         && request.intent.name === 'GetScheduleByClassAndDateIntent');
   },
   handle(handlerInput) {
-    const { requestEnvelope } = handlerInput;
+    const { requestEnvelope, attributesManager } = handlerInput;
     const { intent } = requestEnvelope.request;
+    const sessionAttributes = attributesManager.getSessionAttributes();
 
     console.log('In GetScheduleByClassAndDateIntentHandler');
 
@@ -380,7 +397,9 @@ const GetScheduleByClassAndDateIntentHandler = {
 
     if (validateClassAndDay(intent.slots.class_name.value.toLowerCase(), day)){
       return handleClassAndDay(handlerInput,
-                                intent.slots.class_name.value.toLowerCase(),day);
+                                intent.slots.class_name.value.toLowerCase(),
+                                day,
+                                sessionAttributes.gpp);
     }
     else{
       return handlerInput.responseBuilder
@@ -415,8 +434,7 @@ const OpenIntentHandler = {
   },
   handle(handlerInput) {
 
-    //const speechOutput = WELCOME_MESSAGE;
-    const speechOutput = 'Karate scheduler is already open.';
+    const speechOutput = 'Karate scheduler is already open.  ' + CONTINUE_MESSAGE;
 
     return handlerInput.responseBuilder
       .speak(speechOutput)
@@ -715,8 +733,24 @@ const BlackBeltTestIntentHandler = {
       && request.intent.name === 'BlackBeltTestIntent';
   },
   handle(handlerInput) {
+    const speechOutput = 'The next black belt test is: ' + blackbelttests.BLACKBELTTESTS[0];
 
-    const speechOutput = CANT_HANDLE_MESSAGE;
+    return handlerInput.responseBuilder
+      .speak(speechOutput)
+      .reprompt(speechOutput)
+      .getResponse();
+  },
+};
+
+const BeltPromotionIntentHandler = {
+  canHandle(handlerInput) {
+    const request = handlerInput.requestEnvelope.request;
+
+    return request.type === 'IntentRequest'
+      && request.intent.name === 'BeltPromotionIntent';
+  },
+  handle(handlerInput) {
+    const speechOutput = 'The next belt promotion is: ' + beltpromotions.BELTPROMOTIONS[0];
 
     return handlerInput.responseBuilder
       .speak(speechOutput)
@@ -770,7 +804,7 @@ const ErrorHandler = {
     return true;
   },
   handle(handlerInput, error) {
-    console.log('Error handled: ${error.message}');
+    console.log('Error handled: ' + error.message);
     const { attributesManager } = handlerInput;
     const sessionAttributes = attributesManager.getSessionAttributes();
 
@@ -782,23 +816,24 @@ const ErrorHandler = {
 };
 
 const SKILL_NAME = 'karate scheduler';
+const WELCOME_MESSAGE = 'Welcome to the karate scheduler.  For help say help.';
 const GET_DAY_MESSAGE = 'Please provide the day of the week for your activity.';
 const GET_STUDENT_MESSAGE = 'I will find an activity happening today for the student name you provide.  What is the students name?'
 const GET_TIME_MESSAGE = 'Please provide the time for your activity, specifying AM or PM.';
 const LIST_TIMES_MESSAGE = 'The following times are available for your student: ';
 const ACTIVITY_MESSAGE = 'Your activity is: ';
 const FINDACTIVITY_MESSAGE = 'Checking schedule.';
-const HELP_MESSAGE = 'Karate scheduler help.  You can use this skill to find karate classes.  To exit say exit.  Here are some things you can try.  Is there a beginners class on Friday.  What time is my advanced class today.  Reset my age and belt.';
+const HELP_MESSAGE = 'Karate scheduler help.  You can use this skill to find karate classes.  To exit say exit.  Here are some things you can try.  What time do I have karate today?  Is there a beginners class on Friday?  What time is my advanced class today?  What time is my little champions class on December 1st?  Reset my age and belt.  Enable Genuine People Personality.';
 const HELP_REPROMPT = 'What can I help you with?';
 const STOP_MESSAGE = 'Goodbye!';
 const CONTINUE_MESSAGE = 'To continue try asking the scheduler something else.  Or you can say help or exit.'
 const CANT_HANDLE_MESSAGE = 'The karate scheduler can not handle this request.  Please refer to the schedule provided by your school.'
 const STANDARD_ERROR_MESSAGES = ['Sorry.  An error occurred.'];
 const GPP_ERROR_MESSAGES = [
-  '<audio src="soundbank://soundlibrary/scifi/amzn_sfx_scifi_explosion_01"/><say-as interpret-as="interjection">argh!</say-as>  What was that?',
-  '<audio src="soundbank://soundlibrary/scifi/amzn_sfx_scifi_explosion_02"/><say-as interpret-as="interjection">ahem!</say-as>  What did you just say?',
-  '<audio src="soundbank://soundlibrary/scifi/amzn_sfx_scifi_explosion_03"/><say-as interpret-as="interjection">aw man!</say-as>  Can you say that again?',
-  '<audio src="soundbank://soundlibrary/scifi/amzn_sfx_scifi_explosion_2x_01"/><say-as interpret-as="interjection">baa!</say-as>  I\'m not sure what you mean.',
+  '<audio src="soundbank://soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_negative_response_01"/><say-as interpret-as="interjection">argh!</say-as>  What was that?',
+  '<audio src="soundbank://soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_negative_response_02"/><say-as interpret-as="interjection">ahem!</say-as>  What did you just say?',
+  '<audio src="soundbank://soundlibrary/human/amzn_sfx_clear_throat_ahem_01"/><say-as interpret-as="interjection">aw man!</say-as>  Can you say that again?',
+  '<audio src="soundbank://soundlibrary/human/amzn_sfx_baby_fuss_01"/><say-as interpret-as="interjection">baa!</say-as>  I\'m not sure what you mean.',
   '<audio src="soundbank://soundlibrary/scifi/amzn_sfx_scifi_incoming_explosion_01"/><say-as interpret-as="interjection">blah!</say-as>  Sorry, I\'m not sure.',
   '<audio src="soundbank://soundlibrary/scifi/amzn_sfx_scifi_explosion_02"/><say-as interpret-as="interjection">blarg!</say-as>  What was that?',
   '<audio src="soundbank://soundlibrary/scifi/amzn_sfx_scifi_explosion_03"/><say-as interpret-as="interjection">blast!</say-as>  What did you just say?',
@@ -813,6 +848,15 @@ const GPP_ERROR_MESSAGES = [
   '<audio src="soundbank://soundlibrary/scifi/amzn_sfx_scifi_explosion_03"/><say-as interpret-as="interjection">great scott!</say-as>  What was that?',
   '<audio src="soundbank://soundlibrary/scifi/amzn_sfx_scifi_incoming_explosion_01"/><say-as interpret-as="interjection">ahem!</say-as>  What did you just say?',
 ];
+const STANDARD_RESULT_MESSAGES = ['Here\'s the result:  '];
+const GPP_RESULT_MESSAGES = [
+  '<audio src="soundbank://soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_positive_response_01"/><say-as interpret-as="interjection">bingo!</say-as>  Here\'s the result:  ',
+  '<audio src="soundbank://soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_positive_response_02"/><say-as interpret-as="interjection">booya!</say-as>  Here ya go:  ',
+  '<audio src="soundbank://soundlibrary/human/amzn_sfx_crowd_applause_01"/><say-as interpret-as="interjection">aha!</say-as>  Here\'s something:  ',
+  '<audio src="soundbank://soundlibrary/human/amzn_sfx_large_crowd_cheer_01"/><say-as interpret-as="interjection">all righty!</say-as>  Found something for you:  ',
+  '<audio src="soundbank://soundlibrary/musical/amzn_sfx_drum_and_cymbal_01"/><say-as interpret-as="interjection">bam!</say-as>  Got it:  ',
+  '<audio src="soundbank://soundlibrary/musical/amzn_sfx_electric_guitar_01"/><say-as interpret-as="interjection">bang!</say-as>  <say-as interpret-as="interjection">laugh</say-as> Just messing with you.  Here is your result:  ',
+];
 
 const skillBuilder = Alexa.SkillBuilders.standard();
 
@@ -820,6 +864,7 @@ exports.handler = skillBuilder
   .addRequestHandlers(
     GPPIntentHandler,
     ResetIntentHandler,
+    BeltPromotionIntentHandler,
     BlackBeltTestIntentHandler,
     OpenIntentHandler,
     WelcomeHandler,

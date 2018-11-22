@@ -2,7 +2,7 @@
   "name": "serverless-project-karate-scheduler",
   "version": "1.0.0",
   "description": "",
-  "main": "handler.js",
+  "main": "index.js",
   "dependencies": {
     "ask-sdk": "^2.3.0"
   },
